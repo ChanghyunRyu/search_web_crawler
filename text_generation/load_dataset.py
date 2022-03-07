@@ -1,9 +1,10 @@
 from datasets import load_dataset
-from transformers import BartTokenizer
-import pandas as pd
+from transformers import BartTokenizer, BartForConditionalGeneration
 import re
+import torch
 
 tokenizer = BartTokenizer.from_pretrained("facebook/bart-large")
+model = BartForConditionalGeneration.from_pretrained("facebook/bart-large")
 
 
 def preprocessing_data(data):
@@ -21,16 +22,17 @@ def preprocessing_data(data):
 dataset = load_dataset('xsum', save_infos=True)
 input_data = []
 decode_data = []
-pd_data = {'document': [], 'summary': []}
-pd_data = pd.DataFrame(data=pd_data)
 
+model.train()
 count = 0
 for data in dataset['train']:
     x_data, y_data = preprocessing_data(data)
-    data_to_insert = {'document': x_data, 'summary': y_data}
-    pd_data.append(data_to_insert)
+    model.forward(input_ids=x_data['input_ids'], attention_mask=x_data['attention_mask'],
+                  decoder_input_ids=y_data['input_ids'], decoder_attention_mask=y_data['attention_mask'])
     count += 1
-    if count % 10000 == 0:
+    print(count)
+    if count % 10000:
         print(count)
+        torch.save(model.state_dict(), "model/epoch_{0:d}.pt".format('10000'))
 
-pd_data.to_csv('storage/dataset_preprocessing.csv', index=True)
+
