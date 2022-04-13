@@ -15,18 +15,21 @@ bible_page = ['genesis', 'exodus', 'leviticus', 'numbers', 'deuteronomy', 'joshu
               '2-thessalonians', '1-timothy', '2-timothy', 'titus', 'philemon', 'hebrews', 'james', '1-peter',
               '2-peter', '1-john', '2-john', '3-john', 'jude', 'revelation']
 warnings.filterwarnings(action='ignore')
-driver = webdriver.Chrome()
-
 chapters = []
 summarys = []
 documents = []
+pages = []
+
 for page in bible_page:
+    driver = webdriver.Chrome()
     # 성경 html 크롤링
+    print('\nweb crawling {}...'.format(page))
     driver.get(base_url + page)
     html = driver.page_source
     bs = BeautifulSoup(html, 'html.parser')
     # 각 장 크롤링
     tweets = bs.find('div', {'class': 'column_main page_content'}).findAll('div', {'class': 'tweet'})
+    print("extracting tweet...")
     for tweet in tweets:
         # extraction start
         summary = tweet.find('p', {'class': 'tweet_content'})
@@ -39,6 +42,7 @@ for page in bible_page:
         full_url = tweet.find('p', {'class': 'tweet_details'}).find('a', href=re.compile(
             '^(https?:\/\/)([^\/]*)(\.)(biblegateway\.com)(.*)'))
         full_url = full_url.attrs['href']
+        print('moving... :{}'.format(full_url))
         driver.get(full_url)
         full_html = driver.page_source
         full_bs = BeautifulSoup(full_html, 'html.parser')
@@ -50,8 +54,10 @@ for page in bible_page:
         chapters.append(chapter)
         documents.append(document)
         summarys.append(summary)
+        pages.append(page)
+    driver.delete_all_cookies()
+    driver.close()
 
-dataframe = pd.DataFrame({'chapter': chapters, 'document': documents, 'summary': summarys})
+dataframe = pd.DataFrame({'page': pages, 'chapter': chapters, 'document': documents, 'summary': summarys})
 dataframe.to_csv('storage/bible_summary.csv', encoding='utf-8')
-driver.delete_all_cookies()
-driver.close()
+
