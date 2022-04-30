@@ -141,18 +141,6 @@ def extract_youtube_link(search_word):
     return result
 
 
-# 성능 향상을 위한 테스트, 동적 페이지
-def extract_youtube_link_ex(search_word):
-    search_word = re.sub(' ', '+', search_word)
-    url = 'https://www.youtube.com/results?search_query='+search_word
-    html = urlopen(url)
-    bs = BeautifulSoup(html, 'lxml')
-    search_results = bs.find('div', id='contents').find('ytd-video-renderer')
-    result = search_results.find('a', id='thumbnail').attrs['href']
-    result = 'https://www.youtube.com'+result
-    return result
-
-
 # News crawling(CNN)
 def return_article(subject):
     link_list = extract_article_link(subject)
@@ -208,3 +196,9 @@ def extract_article_link(subject, num=5):
     driver.quit()
     link_list = list(link_list)
     return link_list
+
+
+def return_article_by_keyword(keyword):
+    base_url = 'https://edition.cnn.com/search?q='
+
+    return
