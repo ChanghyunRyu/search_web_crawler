@@ -178,7 +178,6 @@ def extract_article_cnn(link, article_list):
     bs = BeautifulSoup(html, 'lxml')
     title = bs.find('h1', {'class': 'pg-headline'}).text
     article = bs.find('div', {'itemprop': 'articleBody'}).find('section', {'id': 'body-text'}).text
-    article_list.append((title, article))
     return
 
 
