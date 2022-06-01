@@ -36,6 +36,8 @@ class Frontier:
             self.getNewsLinkBySearch_Ko(keyword, queue, number)
         elif role == 'news en':
             self.getNewsLinkBySearch_En(keyword, queue, number)
+        elif role == 'google search':
+            self.getGoogleSearchLink(keyword, queue)
 
     def getNewsLinkBySearch_Ko(self, keyword, queue, number):
         keyword = re.sub(' ', '%20', keyword)
@@ -94,6 +96,7 @@ class Frontier:
 
     def getNewsLinkBySearch_En(self, keyword, queue, number):
         start = time.time()
+        keyword = self.forth_processing(keyword)
         keyword = re.sub(' ', '%20', keyword)
         addition = [''] + self.permit_site_en
         count = 0
@@ -128,10 +131,42 @@ class Frontier:
         link = article.link
         get_url = requests.get(url=link, headers=header).text
         bs = BeautifulSoup(get_url, 'lxml')
-        new_link = bs.find('a', href=re.compile(self.googleNews[article.site])).attrs['href']
-        article.link = new_link
-        # -------------------------------------Queue 추가--------------------------------------
-        queue.put(article)
+        new_link = bs.find('a', href=re.compile(self.googleNews[article.site]))
+        if new_link is not None:
+            new_link = new_link.attrs['href']
+            article.link = new_link
+            queue.put(article)
+        else:
+            if article.site == 'BBC':
+                new_link = bs.find('a', href=re.compile('https\:\/\/www\.bbc\.co\.uk'))
+                new_link = new_link.attrs['href']
+                new_link = re.sub('\.co\.uk', '.com', new_link)
+                article.link = new_link
+                queue.put(article)
+
+    def getGoogleSearchLink(self, keyword, queue):
+        baseurl = "https://www.google.com/search?q="
+        p = re.compile('^(what is )[A-Za-z0-9 ]+')
+        if p.match(keyword) is not None:
+            keyword += ' meaning'
+        keyword = re.sub('\&', '%26', keyword)
+        keyword = re.sub('\'', '%27', keyword)
+        keyword = re.sub(' ', '+', keyword)
+        url = baseurl+keyword
+        print(url)
+        webpage = Webpage(title='Google search link', site='google', link=url)
+        queue.put(webpage)
+        return
+
+    def forth_processing(self, keyword):
+        p = re.compile(
+            '([tT]he |[oO]n |[aA][nN]* )*([aA][rR][tT][iI][cC][lL][eE][sS]*|[nN][eE][wW][sS])+( [aA]bout| [oO]f)*')
+        c = list(p.findall(keyword))
+        if len(c) > 0:
+            for pattern in c:
+                pattern = ''.join(list(pattern))
+                keyword = re.sub(pattern, '', keyword)
+        return keyword
 
 
 class Crawler:
@@ -142,6 +177,8 @@ class Crawler:
     def startCrawl(self, role, keyword, number=1):
         start = time.time()
         frontier = Frontier()
+        if role == 'youtube' or role == 'google search':
+            number = 1
         t = threading.Thread(target=frontier.getLinks, args=(role, keyword, self.url_queue, number))
         t.start()
         count = 0

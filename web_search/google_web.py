@@ -1,6 +1,10 @@
 from bs4 import BeautifulSoup
 from selenium import webdriver
+import requests
 import re
+
+header = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
+                        'Chrome/100.0.4896.127 Safari/537.36'}
 
 
 class Content:
@@ -34,23 +38,21 @@ class Content:
 
 if __name__ == '__main__':
     baseurl = "https://www.google.com/search?q="
-    question = 'what is captain america?'
+    question = 'what is machine learning?'
     question = re.sub(' ', '+', question)
 
-    options = webdriver.ChromeOptions()
-    options.add_argument('headless')
-    driver = webdriver.Chrome(chrome_options=options)
-    driver.get(baseurl + question)
-
-    html = driver.page_source
-    soup = BeautifulSoup(html, 'html.parser')
+    url = baseurl+question
+    html = requests.get(url=url, headers=header).text
+    soup = BeautifulSoup(html, 'lxml')
 
     # recommend 추출(없는 경우 존재)
     recommend = soup.find(id='search').find('div', {'data-tts': 'answers'})
+    print(recommend)
     if recommend is not None:
         recommend = recommend.text
     elif soup.find(id='search').find('div', {'role': 'heading'}) is not None:
         recommend = soup.find(id='search').find('div', {'role': 'heading'})
+        print(recommend)
         recommend = recommend.text
     else:
         recommend = soup.find(id='search').find('span', {'class': 'hgKElc'})

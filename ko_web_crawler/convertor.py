@@ -78,6 +78,8 @@ class Convertor:
                                'PEOPLE': people_extract_tag}
 
     def extract_content(self, webpage: Webpage):
+        if webpage.title == 'Google search link':
+            return self.extract_Google_Search(webpage)
         if webpage.ko:
             return self.extract_Article_Ko(webpage)
         try:
@@ -92,10 +94,18 @@ class Convertor:
             if webpage.site == 'Daily mail':
                 bodies = bodies[0].find('div', {'itemprop': 'articleBody'}).find_all('p')
             elif webpage.site == 'BBC':
-                divs = bodies[0].find_all('div', {'data-component': 'text-block'})
-                bodies = []
-                for div in divs:
-                    bodies.append(div.find('p'))
+                if len(bodies) > 0:
+                    divs = bodies[0].find_all('div', {'data-component': 'text-block'})
+                    bodies = []
+                    for div in divs:
+                        bodies.append(div.find('p'))
+                else:
+                    article = bs.find('article')
+                    title = [article.find('h1')]
+                    ps = article.find_all('p')
+                    bodies = []
+                    for p in ps:
+                        bodies.append(p)
             elif webpage.site == 'PEOPLE':
                 divs = bodies[0].find_all('div', {'class': 'articleContainer__content'})
                 bodies = []
@@ -105,7 +115,10 @@ class Convertor:
                         continue
                     for p in ps:
                         bodies.append(p)
-            if len(title) == 0 or len(bodies) == 0:
+            if len(title) == 0:
+
+                return
+            if len(bodies) == 0:
                 return
             title = title[0].text
             content = ''
@@ -113,7 +126,8 @@ class Convertor:
                 content += body.text + ' '
             content = self.preprocessingArticle(content)
             title = self.preprocessingArticle(title)
-            return {'site': webpage.site, 'title': title, 'content': content}
+            temp = {'site': webpage.site, 'title': title, 'content': content}
+            return temp
         elif extract_tag['role'] == 'youtube':
             content = bs.select(extract_tag['content'])
             content = content[0].find('a', href=re.compile('https\:\/\/www.youtube\.com'))
@@ -121,7 +135,7 @@ class Convertor:
         elif extract_tag['role'] == 'wiki':
             return self.extract_wikipedia(webpage)
 
-    # 추출한 기사 본문의 쓸모 없는 내용 가공(미구현)
+
     @staticmethod
     def preprocessingArticle(content):
         content = re.sub('\n|\xa0|\t', '', content)
@@ -168,3 +182,43 @@ class Convertor:
                 content = re.sub('  ', ' ', content)
             content = re.sub('\n|\t|\xa0', ' ', content)
             return {'site': article.site, 'title': title, 'content': content}
+
+    def extract_Google_Search(self, webpage: Webpage):
+        try:
+            get_url = requests.get(url=webpage.link, headers=header).text
+        except HTTPError or URLError:
+            return
+        bs = BeautifulSoup(get_url, 'lxml')
+        search = bs.find(id='search')
+        recommends = bs.find_all('span', {'class': 'hgKElc'})
+        if len(recommends) > 0:
+            recommend = recommends[0]
+            emphasis = recommend.find('b')
+            answer = recommend.text
+            if emphasis is not None:
+                emphasis = emphasis.text
+                return [emphasis, answer]
+            else:
+                return [answer]
+        recommend = search.find('div', {'data-tts:' 'answer'})
+        if recommend is not None:
+            emphasis = recommend.find('b')
+            answer = recommend.text
+            if emphasis is not None:
+                emphasis = emphasis.text
+                return [emphasis, answer]
+            else:
+                return [answer]
+        meaning = search.find('div', {'class': 'thODed'})
+        if meaning is not None:
+            answer = meaning.find('span').text
+            return [answer]
+        # 차선책: 검색 결과 링크
+        search_results = []
+        results = bs.find_all('div', {'class': 'g tF2Cxc'})
+        for result in results:
+            link = result.find('a')
+            attrs = link.attrs['href']
+            title = link.find('h3').text
+            search_results.append((title, attrs))
+        return search_results
